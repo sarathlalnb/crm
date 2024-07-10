@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import React, { useEffect, useState, Fragment } from "react";
+import { DataGrid } from "@mui/x-data-grid";
 import { endpoints } from "../../../defaults";
 import useApi from "../../../hooks/useApi";
 import { CSpinner } from "@coreui/react";
+import { Chip, Stack, IconButton } from "@mui/material"; 
+import EditIcon from "@mui/icons-material/Edit";
+import { ToastContainer, toast } from "react-toastify";
 
 const DeveloperSettings = () => {
   const [loading, setLoading] = useState(false);
@@ -18,40 +21,77 @@ const DeveloperSettings = () => {
     const URL = `${endpoints.MODULE_LIST}`;
     try {
       const apiResponse = await getModules(URL);
-      const data = await apiResponse.response.data.data;
-      const transformedModules = data.map((module) => ({
-        id: module.id,
-        created_at: module.created_at,
-        title: module.title,
-        name: module.name,
-        is_editable: module.is_editable,
-        is_deletable: module.is_deletable,
-        is_deleted: module.is_deleted,
-        is_active: module.is_active,
-        actions: module.actions,
-      }));
-      console.log(transformedModules);
-      setModules(transformedModules);
+      const { response, error } = apiResponse;
+      if (response && response.data) {
+        const data = await apiResponse.response.data.data;
+        if (data.length === 0) {
+          toast.info("No modules available");
+        }
+        const transformedModules = data.map((module) => ({
+          id: module.id,
+          created_at: module.created_at,
+          title: module.title,
+          name: module.name,
+          is_editable: module.is_editable,
+          is_deletable: module.is_deletable,
+          is_deleted: module.is_deleted,
+          is_active: module.is_active,
+          actions: module.actions,
+        }));
+        setModules(transformedModules);
+      } else {
+        const { response: errRes } = error;
+        const errorMessage =
+          errRes?.data?.message || "Error Occurred. Please contact Admin !!";
+        toast.error(errorMessage);
+      }
+      setLoading(false);
     } catch (error) {
-      console.error("Failed to fetch modules:", error);
+      toast.error("Failed to fetch modules:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const columns = [
-    { field: "created_at", headerName: "Created At", width: 150 },
-    { field: "name", headerName: "Name", width: 150 },
+    { field: "created_at", headerName: "Created At", flex: 1, width: 10 },
+    { field: "name", headerName: "Name", flex: 1, width: 150 },
     {
       field: "actions",
       headerName: "Operations",
-      width: 300,
+      flex: 2.5,
+      width: 150,
       renderCell: (params) => (
-        <ul style={{ padding: 0, listStyle: "none" }}>
-          {params.value.map((action) => (
-            <li key={action.id}>{action.action.label}</li>
-          ))}
-        </ul>
+        <div className="module-parent">
+          <Stack direction="row" spacing={1}>
+            <Fragment>
+              {params.row.actions.map((action) => (
+                <Chip key={action.id} label={action.action.label} />
+              ))}
+            </Fragment>
+          </Stack>
+        </div>
+      ),
+    },
+    {
+      field: "edit",
+      headerName: "Actions",
+      flex: 1,
+      width: 100,
+      renderCell: (params) => (
+        <div className="module-parent">
+          <Stack direction="row" spacing={1}>
+            {params.row.is_editable && ( // Render edit icon if module is editable
+              <IconButton
+                aria-label="edit"
+                size="small"
+                // onClick={() => handleEdit(params.row.id)}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Stack>
+        </div>
       ),
     },
   ];
@@ -61,7 +101,14 @@ const DeveloperSettings = () => {
       <p className="h4">Modules</p>
       <div style={{ width: "100%" }}>
         {loading ? (
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
             <CSpinner variant="grow" />
           </div>
         ) : (
@@ -77,6 +124,17 @@ const DeveloperSettings = () => {
           />
         )}
       </div>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </div>
   );
 };
